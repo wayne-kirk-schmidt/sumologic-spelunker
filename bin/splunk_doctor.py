@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Exaplanation: splunk_doctor enables analysis of Splunk install in Sumo Logic
+Exaplanation: splunk_doctor enables analysis of Splunk Diag File in Sumo Logic
 
 Usage:
    $ python  splunk_doctor [ options ]
@@ -61,6 +61,7 @@ ARGS = PARSER.parse_args()
 LIMIT = 10000
 LONGQUERY_LIMIT = 100
 WAIT_TIME = 0.2
+POST_TIME = 0.01
 APP_MAPPING = dict()
 
 if ARGS.MY_SECRET:
@@ -90,6 +91,8 @@ except KeyError as myerror:
 
 PPRINT = pprint.PrettyPrinter(indent=4)
 PARSER = configparser.ConfigParser()
+
+SPLUNKHOST = os.path.basename(ARGS.sourcedir).split('-')[1]
 
 ### beginning ###
 
@@ -135,9 +138,17 @@ def collect_applications(source):
         print("STEP-1.3.1 :: Config_Files: Collect all application files from system")
         print("STEP-1.3.2 :: Config_Files: Stored as one application per source")
 
-    cl_name = 'splunk_applications_history'
-    src_category = 'splunk/applications/history'
-    parentid = source.create_collector(cl_name, src_category)['collector']['id']
+    cl_name = 'splunk_applications_object_rbac'
+    src_category = '{}/{}/{}/{}'.format('splunk', SPLUNKHOST, 'applications', 'objectrbac')
+
+    src_items = source.get_collectors()
+    parentid = 'undefined'
+
+    for src_item in src_items:
+        if str(src_item['name']) == cl_name:
+            parentid = src_item['id']
+    if parentid == 'undefined':
+        parentid = source.create_collector(cl_name)['collector']['id']
 
     if ARGS.sourcedir:
         for root, _dirs, files in os.walk(ARGS.sourcedir):
@@ -165,7 +176,7 @@ def post_app_history(source, source_match, src_file, parentid, src_category):
         if not s_value in APP_MAPPING[s_base]:
             APP_MAPPING[s_base][s_value] = dict()
         APP_MAPPING[s_base][s_value] = os.path.getmtime(src_file)
-        src_name = s_base + '_' + s_value
+        src_name = SPLUNKHOST + '_' + s_base + '_' + s_value
         source_output = source.create_source(parentid, src_name, src_category)
         src_url = (source_output['source']['url'])
         post_application_files(src_name, src_category, src_file, src_url)
@@ -177,12 +188,20 @@ def post_app_manifest(source):
     session = requests.Session()
 
     cl_name = 'splunk_applications_manifest'
-    src_category = 'splunk/applications/manifest'
-    parentid = source.create_collector(cl_name, src_category)['collector']['id']
+    src_category = '{}/{}/{}/{}'.format('splunk', SPLUNKHOST, 'applications', 'manifest')
+
+    src_items = source.get_collectors()
+    parentid = 'undefined'
+
+    for src_item in src_items:
+        if str(src_item['name']) == cl_name:
+            parentid = src_item['id']
+    if parentid == 'undefined':
+        parentid = source.create_collector(cl_name)['collector']['id']
 
     for app_key in APP_MAPPING:
 
-        src_name = app_key
+        src_name = SPLUNKHOST + '_' + app_key
         source_output = source.create_source(parentid, src_name, src_category)
         src_url = (source_output['source']['url'])
 
@@ -229,8 +248,16 @@ def collect_config_files(source):
     if ARGS.verbose > 2:
         print("STEP-1.2.0 :: Collector: Create a hosted collector for config files")
     cl_name = 'splunk_configs'
-    src_category = 'splunk/configs'
-    parentid = source.create_collector(cl_name, src_category)['collector']['id']
+    src_category = '{}/{}/{}'.format('splunk', SPLUNKHOST, 'configs')
+
+    src_items = source.get_collectors()
+    parentid = 'undefined'
+
+    for src_item in src_items:
+        if str(src_item['name']) == cl_name:
+            parentid = src_item['id']
+    if parentid == 'undefined':
+        parentid = source.create_collector(cl_name)['collector']['id']
 
     if ARGS.verbose > 2:
         print("STEP-1.2.1 :: Config_Files: Collect all configuration files from system")
@@ -244,7 +271,7 @@ def collect_config_files(source):
                 regex = re.compile(r".*\/etc\/system\/.*.conf$")
                 if regex.match(src_file):
                     source_match = re.match(r".*etc\/system\/(.*)", src_file)
-                    src_name = source_match.groups()[0]
+                    src_name = SPLUNKHOST + '_' + source_match.groups()[0]
                     source_output = source.create_source(parentid, src_name, src_category)
                     src_url = (source_output['source']['url'])
                     src_file_map[src_file] = src_name
@@ -291,8 +318,16 @@ def collect_user_history(source):
         print("STEP-1.4.2 :: Data_Sources: stored as one file per source")
 
     cl_name = 'splunk_history'
-    src_category = 'splunk/usage/history'
-    parentid = source.create_collector(cl_name, src_category)['collector']['id']
+    src_category = '{}/{}/{}/{}'.format('splunk', SPLUNKHOST, 'usage', 'history')
+
+    src_items = source.get_collectors()
+    parentid = 'undefined'
+
+    for src_item in src_items:
+        if str(src_item['name']) == cl_name:
+            parentid = src_item['id']
+    if parentid == 'undefined':
+        parentid = source.create_collector(cl_name)['collector']['id']
 
     src_file_map = dict()
     if ARGS.sourcedir:
@@ -302,7 +337,7 @@ def collect_user_history(source):
                 regex = re.compile(r".*\/history\/.*.csv")
                 if regex.match(src_file):
                     source_match = re.match(r".*users\/(.*)\/history.*", src_file)
-                    src_name = source_match.groups()[0]
+                    src_name = SPLUNKHOST + '_' + source_match.groups()[0]
                     source_output = source.create_source(parentid, src_name, src_category)
                     src_url = (source_output['source']['url'])
                     src_file_map[src_file] = src_name
@@ -320,7 +355,7 @@ def post_history_files(src_name, src_category, src_file, src_url):
     if ARGS.verbose > 4:
         print('OBJECT: {} {}'.format(src_name, src_category))
 
-    time.sleep(WAIT_TIME)
+    time.sleep(POST_TIME)
 
     with open(src_file, mode='r') as uploadfile:
         slrfmap8 = (uploadfile.read().encode('utf-8'))
@@ -396,7 +431,7 @@ class SumoApiClient():
 ### class ###
 ### methods ###
 
-    def create_collector(self, name, source_category):
+    def create_collector(self, name):
         """
         Using an HTTP client, this creates a collector
         """
@@ -406,7 +441,6 @@ class SumoApiClient():
             "api.version":"v1",
             "collector":{
                 "name": name,
-                "category": source_category,
                 "timeZone":"Etc/UTC",
                 "fields":{
                 },
@@ -465,6 +499,15 @@ class SumoApiClient():
         url = "/v1/collectors/" + str(parentid) + "/sources"
         body = self.post(url, jsonpayload).text
         results = json.loads(body)
+        return results
+
+    def get_collectors(self):
+        """
+        Using an HTTP client, this uses a GET to retrieve all collector information.
+        """
+        url = "/v1/collectors"
+        body = self.get(url).text
+        results = json.loads(body)['collectors']
         return results
 
 ### methods ###
