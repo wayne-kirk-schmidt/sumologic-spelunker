@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Exaplanation: splunk_doctor enables analysis of Splunk Diag File in Sumo Logic
+Explanation: splunk_doctor analyzes a Splunk Diag File in Sumo Logic
 
 Usage:
    $ python  splunk_doctor [ options ]
@@ -32,6 +32,8 @@ import sys
 import argparse
 import http
 import time
+import shutil
+import tarfile
 import requests
 
 sys.dont_write_bytecode = 1
@@ -47,8 +49,8 @@ PARSER.add_argument("-k", metavar='<client>', dest='MY_CLIENT', \
                     help="set key (format: <site>_<orgid>) ")
 PARSER.add_argument("-e", metavar='<endpoint>', dest='MY_ENDPOINT', \
                     help="set endpoint (format: <endpoint>) ")
-PARSER.add_argument("-d", metavar='<sourcedir>', dest='sourcedir', \
-                    help="set data source (format: directory path)")
+PARSER.add_argument("-s", metavar='<datasource>', dest='datasource', \
+                    help="set data source (format: directory or file)")
 PARSER.add_argument("-v", type=int, default=0, metavar='<verbose>', \
                     dest='verbose', help="increase verbosity")
 PARSER.add_argument("-j", metavar='<jsonfile>', \
@@ -92,7 +94,8 @@ except KeyError as myerror:
 PPRINT = pprint.PrettyPrinter(indent=4)
 PARSER = configparser.ConfigParser()
 
-SPLUNKHOST = os.path.basename(ARGS.sourcedir).split('-')[1]
+SPLUNKHOST = os.path.basename(ARGS.datasource).split('-')[1]
+EXTRACT_PATH = '/var/tmp'
 
 ### beginning ###
 
@@ -104,13 +107,33 @@ def main():
 
     source = SumoApiClient(SUMO_UID, SUMO_KEY, SUMO_END)
 
+    source_image = resolve_datasource(ARGS.datasource)
+
     prepare_partition()
 
-    collect_config_files(source)
-    collect_applications(source)
-    collect_user_history(source)
+    collect_config_files(source, source_image)
+    collect_applications(source, source_image)
+    collect_user_history(source, source_image)
 
     perform_analysis()
+
+def resolve_datasource(datatarget):
+    """
+    This unpacks the directory if given a diagnostic file
+    """
+
+    if os.path.isfile(datatarget):
+        archive_object = tarfile.open(datatarget, mode='r')
+        extract_dir = (os.path.commonprefix(archive_object.getnames()))
+        shutil.unpack_archive(datatarget, EXTRACT_PATH)
+        datasource = os.path.abspath(os.path.join(EXTRACT_PATH, extract_dir))
+    else:
+        datasource = os.path.abspath(datatarget)
+
+    if ARGS.verbose > 3:
+        print('{}'.format(datasource))
+
+    return datasource
 
 def prepare_partition():
     """
@@ -128,7 +151,7 @@ def perform_analysis():
         print("STEP-1.5.1 :: Perform_Analysis: run all default Sumo Logic queries")
         print("STEP-1.5.2 :: Perform_Analysis: run all specified Sumo Logic queries")
 
-def collect_applications(source):
+def collect_applications(source, source_image):
     """
     This module collects information about applications from local and default files
     """
@@ -150,14 +173,13 @@ def collect_applications(source):
     if parentid == 'undefined':
         parentid = source.create_collector(cl_name)['collector']['id']
 
-    if ARGS.sourcedir:
-        for root, _dirs, files in os.walk(ARGS.sourcedir):
-            for file in files:
-                src_file = (os.path.join(root, file))
-                regex = re.compile(r".*\/etc\/apps\/.*.meta$")
-                if regex.match(src_file):
-                    source_match = re.match(r".*etc\/apps\/(.*)", src_file)
-                    post_app_history(source, source_match, src_file, parentid, src_category)
+    for root, _dirs, files in os.walk(source_image):
+        for file in files:
+            src_file = (os.path.join(root, file))
+            regex = re.compile(r".*\/etc\/apps\/.*.meta$")
+            if regex.match(src_file):
+                source_match = re.match(r".*etc\/apps\/(.*)", src_file)
+                post_app_history(source, source_match, src_file, parentid, src_category)
 
     post_app_manifest(source)
 
@@ -240,7 +262,7 @@ def post_application_files(src_name, src_category, src_file, src_url):
             if ARGS.verbose > 5:
                 print('RESPONSE: {}'.format(status_code))
 
-def collect_config_files(source):
+def collect_config_files(source, source_image):
     """
     This module collects vendor configuration files
     """
@@ -264,18 +286,17 @@ def collect_config_files(source):
         print("STEP-1.2.2 :: Config_Files: Stored as one configuration per source")
 
     src_file_map = dict()
-    if ARGS.sourcedir:
-        for root, _dirs, files in os.walk(ARGS.sourcedir):
-            for file in files:
-                src_file = (os.path.join(root, file))
-                regex = re.compile(r".*\/etc\/system\/.*.conf$")
-                if regex.match(src_file):
-                    source_match = re.match(r".*etc\/system\/(.*)", src_file)
-                    src_name = SPLUNKHOST + '_' + source_match.groups()[0]
-                    source_output = source.create_source(parentid, src_name, src_category)
-                    src_url = (source_output['source']['url'])
-                    src_file_map[src_file] = src_name
-                    post_config_files(src_name, src_category, src_file, src_url)
+    for root, _dirs, files in os.walk(source_image):
+        for file in files:
+            src_file = (os.path.join(root, file))
+            regex = re.compile(r".*\/etc\/system\/.*.conf$")
+            if regex.match(src_file):
+                source_match = re.match(r".*etc\/system\/(.*)", src_file)
+                src_name = SPLUNKHOST + '_' + source_match.groups()[0]
+                source_output = source.create_source(parentid, src_name, src_category)
+                src_url = (source_output['source']['url'])
+                src_file_map[src_file] = src_name
+                post_config_files(src_name, src_category, src_file, src_url)
 
     if ARGS.verbose > 8:
         print('MAPPING:')
@@ -308,7 +329,7 @@ def post_config_files(src_name, src_category, src_file, src_url):
             if ARGS.verbose > 5:
                 print('RESPONSE: {}'.format(status_code))
 
-def collect_user_history(source):
+def collect_user_history(source, source_image):
     """
     This module collects the files from user history and uploads them into sources
     """
@@ -330,18 +351,17 @@ def collect_user_history(source):
         parentid = source.create_collector(cl_name)['collector']['id']
 
     src_file_map = dict()
-    if ARGS.sourcedir:
-        for root, _dirs, files in os.walk(ARGS.sourcedir):
-            for file in files:
-                src_file = (os.path.join(root, file))
-                regex = re.compile(r".*\/history\/.*.csv")
-                if regex.match(src_file):
-                    source_match = re.match(r".*users\/(.*)\/history.*", src_file)
-                    src_name = SPLUNKHOST + '_' + source_match.groups()[0]
-                    source_output = source.create_source(parentid, src_name, src_category)
-                    src_url = (source_output['source']['url'])
-                    src_file_map[src_file] = src_name
-                    post_history_files(src_name, src_category, src_file, src_url)
+    for root, _dirs, files in os.walk(source_image):
+        for file in files:
+            src_file = (os.path.join(root, file))
+            regex = re.compile(r".*\/history\/.*.csv")
+            if regex.match(src_file):
+                source_match = re.match(r".*users\/(.*)\/history.*", src_file)
+                src_name = SPLUNKHOST + '_' + source_match.groups()[0]
+                source_output = source.create_source(parentid, src_name, src_category)
+                src_url = (source_output['source']['url'])
+                src_file_map[src_file] = src_name
+                post_history_files(src_name, src_category, src_file, src_url)
 
     if ARGS.verbose > 8:
         print('MAPPING:')
