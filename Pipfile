@@ -1,14 +1,15 @@
 [[source]]
-name = "pypi"
-url = "https://pypi.org/simple"
+url = "https://pypi.python.org/simple"
 verify_ssl = true
-
-[dev-packages]
-pyinstaller = "*"
+name = "pypi"
 
 [packages]
 requests = "*"
 pandas = "*"
 argparse = "*"
 configparser = "*"
-pprint = "*"
+pprint36="*"
+
+[dev-packages]
+pyinstaller = "*"
+

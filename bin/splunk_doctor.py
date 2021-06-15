@@ -25,7 +25,7 @@ __author__ = "Wayne Schmidt (wschmidt@sumologic.com)"
 ### beginning ###
 import configparser
 import json
-import pprint
+import pprint36
 import os
 import re
 import sys
