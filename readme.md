@@ -6,6 +6,13 @@ For Spelunker, it uses a Splunk diag file and publishes this to Sumo Logic.
 
 Want to find out how your Splunk deployment would look in Sumo Logic? Time to go spelunking!
 
+Business Case
+=============
+
+Curious what was the business goals we wanted to solve? 
+
+Please read on in our [writeup](doc/writeup.md)!
+
 Installing the Scripts
 =======================
 
