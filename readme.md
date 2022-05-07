@@ -1,10 +1,10 @@
 Sumo Logic Data Doctor
 ======================
 
-Data Doctor allows clients to compare existing data platforms to Sumo Logic.
-It uses app info, config files, and user history to show how your data would look in Sumo Logic.
+Sumo Logic Spelunker allows clients to compare existing data platforms to Sumo Logic.
+For Spelunker, it uses a Splunk diag file and publishes this to Sumo Logic.
 
-The Data Doctor is in!
+Want to find out how your Splunk deployment would look in Sumo Logic? Time to go spelunking!
 
 Installing the Scripts
 =======================
@@ -32,7 +32,7 @@ The steps are as follows:
     5. Clone this repository. This will create a new folder
 
     6. Change into the folder. Type the following to install all the package dependencies 
-       (this may take a while as this will download all of the libraries that sumotoolbox uses):
+       (this may take a while as this will download all of the libraries used):
 
         pipenv install
         
@@ -48,7 +48,7 @@ The installation is organized into sub directories:
 
     1. ./bin - all of the vendor scripts for installation
 
-*  sumo_logic_splunk_doctor.py - analysis for Splunk Systems in Sumo Logic
+*  ./bin/sumologic_spelunker.py - analysis for Splunk Systems in Sumo Logic
 
     2. ./lib - has samples queries to use for analysis
     3. ./etc - has an example of a config file to set ENV variables for access
@@ -64,13 +64,15 @@ License
 =======
 
 Copyright 2019 Wayne Kirk Schmidt
+https://www.linkedin.com/in/waynekirkschmidt
 
-Licensed under the GNU GPL License (the "License");
-you may not use this file except in compliance with the License.
+Licensed under the Apache 2.0 License (the "License");
+
+You may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    license-name   GNU GPL
-    license-url    http://www.gnu.org/licenses/gpl.html
+    license-name   APACHE 2.0
+    license-url    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -81,6 +83,11 @@ limitations under the License.
 Support
 =======
 
-Feel free to e-mail me with issues to: wschmidt@sumologic.com
+Feel free to e-mail me with issues to: 
+
+*    wschmidt@sumologic.com
+
+*    wayne.kirk.schmidt@gmail.com
+
 I will provide "best effort" fixes and extend the scripts.
 
