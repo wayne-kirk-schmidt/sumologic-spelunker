@@ -11,6 +11,7 @@ Business Case
 
 Curious what was the business goals we wanted to solve? 
 
+
 Please read on in our [writeup](doc/writeup.md)!
 
 Installing the Scripts
