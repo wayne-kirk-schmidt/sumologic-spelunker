@@ -5,10 +5,8 @@ name = "pypi"
 
 [packages]
 requests = "*"
-pandas = "*"
 argparse = "*"
 configparser = "*"
-pprint36="*"
 
 [dev-packages]
 pyinstaller = "*"

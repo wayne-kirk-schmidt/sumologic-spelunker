@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# pylint: disable=W0702
+# pylint: disable=R0914
 
 """
 Explanation: sumologic_spelunker analyzes a Splunk Diag File in Sumo Logic
@@ -33,7 +35,6 @@ import http
 import time
 import shutil
 import tarfile
-import pprint
 import requests
 
 sys.dont_write_bytecode = 1
@@ -91,7 +92,6 @@ try:
 except KeyError as myerror:
     print(f'ERROR: Env Variable not set :: {myerror.args[0]}')
 
-PPRINT = pprint.PrettyPrinter(indent=4)
 PARSER = configparser.ConfigParser()
 
 SPLUNKHOST = os.path.basename(ARGS.datasource).split('-')[1]
@@ -298,10 +298,6 @@ def collect_config_files(source, source_image):
                 src_file_map[src_file] = src_name
                 post_config_files(src_name, src_category, src_file, src_url)
 
-    if ARGS.verbose > 8:
-        print('MAPPING:')
-        PPRINT.pprint(src_file_map)
-
 def post_config_files(src_name, src_category, src_file, src_url):
     """
     Read and post the contents of the file into a message
@@ -362,10 +358,6 @@ def collect_user_history(source, source_image):
                 src_url = (source_output['source']['url'])
                 src_file_map[src_file] = src_name
                 post_history_files(src_name, src_category, src_file, src_url)
-
-    if ARGS.verbose > 8:
-        print('MAPPING:')
-        PPRINT.pprint(src_file_map)
 
 def post_history_files(src_name, src_category, src_file, src_url):
     """
